@@ -109,3 +109,61 @@ func Part1() (string, error) {
 
 	return strconv.Itoa(sum), nil
 }
+
+func maxRedCubes(g game) int {
+	m := 1
+	for _, h := range g.hands {
+		if m < h.red {
+			m = h.red
+		}
+	}
+	return m
+}
+
+func maxGreenCubes(g game) int {
+	m := 1
+	for _, h := range g.hands {
+		if m < h.green {
+			m = h.green
+		}
+	}
+	return m
+}
+
+func maxBlueCubes(g game) int {
+	m := 1
+	for _, h := range g.hands {
+		if m < h.blue {
+			m = h.blue
+		}
+	}
+	return m
+}
+
+func minCubePower(g game) int {
+	return maxRedCubes(g) * maxGreenCubes(g) * maxBlueCubes(g)
+}
+
+// Time taken: 12 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day2/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	var games []game
+	for _, line := range lines {
+		g, err := extractGameInfo(line)
+		if err != nil {
+			return "", err
+		}
+		games = append(games, g)
+	}
+
+	sum := 0
+	for _, g := range games {
+		sum += minCubePower(g)
+	}
+
+	return strconv.Itoa(sum), nil
+}
