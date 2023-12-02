@@ -13,18 +13,22 @@ func main() {
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
 	}
-	if len(args) < 1 {
-		log.Fatal("Usage: ./run <day>\n")
+	if len(args) < 2 {
+		log.Fatal("Usage: ./run <day> <part>\n")
 	}
+
+	day := args[0]
+	part := args[1]
 
 	var result string
 	var err error
 	result, err = "", nil
-	switch args[0] {
-	case "1":
+	if day == "1" && part == "1" {
 		result, err = Day1.Part1()
-	default:
-		err = fmt.Errorf("Unrecognised day: %s", args[0])
+	} else if day == "1" && part == "2" {
+		result, err = Day1.Part2()
+	} else {
+		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}
 
 	if err != nil {
