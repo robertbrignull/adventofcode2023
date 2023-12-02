@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"robertbrignull/adventofcode2023/days/day1"
+	"robertbrignull/adventofcode2023/days/day2"
 )
 
 func main() {
@@ -27,6 +28,8 @@ func main() {
 		result, err = day1.Part1()
 	} else if day == "1" && part == "2" {
 		result, err = day1.Part2()
+	} else if day == "2" && part == "1" {
+		result, err = day2.Part1()
 	} else {
 		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}
