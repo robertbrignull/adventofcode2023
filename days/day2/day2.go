@@ -86,7 +86,7 @@ func isGamePossible(g game, maxRed int, maxGreen int, maxBlue int) bool {
 
 // Time taken: 19 minutes
 func Part1() (string, error) {
-	lines, err := shared.ReadFileLines("days/day2/input2.txt")
+	lines, err := shared.ReadFileLines("days/day2/input.txt")
 	if err != nil {
 		return "", err
 	}

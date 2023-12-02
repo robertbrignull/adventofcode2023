@@ -84,7 +84,7 @@ func lastNumber(line string) (int, error) {
 
 // Time taken: 30 minutes
 func Part1() (string, error) {
-	lines, err := shared.ReadFileLines("days/day1/input1.txt")
+	lines, err := shared.ReadFileLines("days/day1/input.txt")
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +109,7 @@ func Part1() (string, error) {
 
 // Time taken: 11 minutes
 func Part2() (string, error) {
-	lines, err := shared.ReadFileLines("days/day1/input1.txt")
+	lines, err := shared.ReadFileLines("days/day1/input.txt")
 	if err != nil {
 		return "", err
 	}
