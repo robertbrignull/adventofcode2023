@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	Day1 "robertbrignull/adventofcode2023/days/day1"
+	"robertbrignull/adventofcode2023/days/day1"
 )
 
 func main() {
@@ -24,9 +24,9 @@ func main() {
 	var err error
 	result, err = "", nil
 	if day == "1" && part == "1" {
-		result, err = Day1.Part1()
+		result, err = day1.Part1()
 	} else if day == "1" && part == "2" {
-		result, err = Day1.Part2()
+		result, err = day1.Part2()
 	} else {
 		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}
