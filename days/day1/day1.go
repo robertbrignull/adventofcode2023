@@ -29,7 +29,7 @@ func lastNumber(line string) (int, error) {
 	return 0, fmt.Errorf("string does not contain any digits: %s", line)
 }
 
-func Run() (string, error) {
+func Part1() (string, error) {
 	lines, err := Shared.ReadFileLines("days/day1/input1.txt")
 	if err != nil {
 		return "", err

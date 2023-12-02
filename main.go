@@ -22,7 +22,7 @@ func main() {
 	result, err = "", nil
 	switch args[0] {
 	case "1":
-		result, err = Day1.Run()
+		result, err = Day1.Part1()
 	default:
 		err = fmt.Errorf("Unrecognised day: %s", args[0])
 	}
