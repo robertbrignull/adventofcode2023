@@ -5,6 +5,13 @@ import (
 	"strconv"
 )
 
+type PartNumber struct {
+	number int
+	row    int
+	s      int
+	e      int
+}
+
 func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
 }
@@ -31,7 +38,7 @@ func findNextNonDigit(line string, index int) int {
 	return len(line)
 }
 
-func isNextToDigit(lines []string, row int, s int, e int) bool {
+func isNextToSymbol(lines []string, row int, s int, e int) bool {
 	for j := max(0, row-1); j < min(row+2, len(lines)); j++ {
 		for i := max(0, s-1); i < min(e+1, len(lines[j])); i++ {
 			if isSymbol(lines[j][i]) {
@@ -42,14 +49,8 @@ func isNextToDigit(lines []string, row int, s int, e int) bool {
 	return false
 }
 
-// Time taken: 16 minutes
-func Part1() (string, error) {
-	lines, err := shared.ReadFileLines("days/day3/input.txt")
-	if err != nil {
-		return "", err
-	}
-
-	partNumbersSum := 0
+func extractPartNumbers(lines []string) ([]PartNumber, error) {
+	partNumbers := []PartNumber{}
 
 	x, y := 0, 0
 	for {
@@ -72,14 +73,34 @@ func Part1() (string, error) {
 			e := findNextNonDigit(lines[y], s+1)
 			x = e
 
-			if isNextToDigit(lines, y, s, e) {
-				partNumber, err := strconv.Atoi(lines[y][s:e])
-				if err != nil {
-					return "", err
-				}
-
-				partNumbersSum += partNumber
+			partNumber, err := strconv.Atoi(lines[y][s:e])
+			if err != nil {
+				return []PartNumber{}, err
 			}
+
+			partNumbers = append(partNumbers, PartNumber{partNumber, y, s, e})
+		}
+	}
+
+	return partNumbers, nil
+}
+
+// Time taken: 16 minutes
+func Part1() (string, error) {
+	lines, err := shared.ReadFileLines("days/day3/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	partNumbers, err := extractPartNumbers(lines)
+	if err != nil {
+		return "", err
+	}
+
+	partNumbersSum := 0
+	for _, partNumber := range partNumbers {
+		if isNextToSymbol(lines, partNumber.row, partNumber.s, partNumber.e) {
+			partNumbersSum += partNumber.number
 		}
 	}
 
