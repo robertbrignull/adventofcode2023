@@ -12,7 +12,7 @@ type ScratchCard struct {
 	cardNumber     int
 	winningNumbers []int
 	yourNumbers    []int
-	points         int
+	numMatches     int
 }
 
 func isWinningNumber(winningNumbers []int, yourNumber int) bool {
@@ -24,18 +24,25 @@ func isWinningNumber(winningNumbers []int, yourNumber int) bool {
 	return false
 }
 
-func computeScratchCardPoints(winningNumbers []int, yourNumbers []int) int {
-	points := 0
-	for _, yn := range yourNumbers {
-		if isWinningNumber(winningNumbers, yn) {
-			if points == 0 {
-				points = 1
-			} else {
-				points *= 2
-			}
-		}
+func computeScratchCardPoints(numMatches int) int {
+	if numMatches == 0 {
+		return 0
+	}
+	points := 1
+	for i := 1; i < numMatches; i++ {
+		points *= 2
 	}
 	return points
+}
+
+func computeNumMatches(winningNumbers []int, yourNumbers []int) int {
+	numMatches := 0
+	for _, yn := range yourNumbers {
+		if isWinningNumber(winningNumbers, yn) {
+			numMatches += 1
+		}
+	}
+	return numMatches
 }
 
 func extractNumbers(line string) ([]int, error) {
@@ -72,13 +79,13 @@ func extractScratchCard(line string) (ScratchCard, error) {
 		return ScratchCard{}, err
 	}
 
-	points := computeScratchCardPoints(winningNumbers, yourNumbers)
+	numMatches := computeNumMatches(winningNumbers, yourNumbers)
 
 	return ScratchCard{
 		cardNumber,
 		winningNumbers,
 		yourNumbers,
-		points,
+		numMatches,
 	}, nil
 }
 
@@ -110,8 +117,41 @@ func Part1() (string, error) {
 
 	pointsSum := 0
 	for _, scratchCard := range scratchCards {
-		pointsSum += scratchCard.points
+		pointsSum += computeScratchCardPoints(scratchCard.numMatches)
 	}
 
 	return strconv.Itoa(pointsSum), nil
+}
+
+// Time taken: 11 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day4/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	scratchCards, err := extractScratchCards(lines)
+	if err != nil {
+		return "", err
+	}
+
+	numCopies := make([]int, len(scratchCards))
+	for i := range numCopies {
+		// We gain one original copy
+		numCopies[i] += 1
+
+		for j := 0; j < scratchCards[i].numMatches; j++ {
+			if i+j+1 >= len(numCopies) {
+				break
+			}
+			numCopies[i+j+1] += numCopies[i]
+		}
+	}
+
+	cardsSum := 0
+	for _, c := range numCopies {
+		cardsSum += c
+	}
+
+	return strconv.Itoa(cardsSum), nil
 }
