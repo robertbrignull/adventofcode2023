@@ -10,9 +10,9 @@ import (
 type Seeds []int
 
 type RangeMapEntry struct {
-	DestinationStart int
-	SourceStart      int
-	Length           int
+	destinationStart int
+	sourceStart      int
+	length           int
 }
 
 type RangeMap struct {
@@ -21,8 +21,8 @@ type RangeMap struct {
 
 func (rm RangeMap) lookup(source int) int {
 	for _, entry := range rm.entries {
-		if source >= entry.SourceStart && source < entry.SourceStart+entry.Length {
-			return entry.DestinationStart + (source - entry.SourceStart)
+		if source >= entry.sourceStart && source < entry.sourceStart+entry.length {
+			return entry.destinationStart + (source - entry.sourceStart)
 		}
 	}
 	return source
@@ -53,7 +53,7 @@ func readSeeds(line string) (Seeds, error) {
 
 func readRangeMapEntry(line string) (RangeMapEntry, error) {
 	var entry RangeMapEntry
-	_, err := fmt.Sscanf(line, "%d %d %d", &entry.DestinationStart, &entry.SourceStart, &entry.Length)
+	_, err := fmt.Sscanf(line, "%d %d %d", &entry.destinationStart, &entry.sourceStart, &entry.length)
 	return entry, err
 }
 
