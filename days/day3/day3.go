@@ -12,6 +12,11 @@ type PartNumber struct {
 	e      int
 }
 
+type Gear struct {
+	x int
+	y int
+}
+
 func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
 }
@@ -85,6 +90,32 @@ func extractPartNumbers(lines []string) ([]PartNumber, error) {
 	return partNumbers, nil
 }
 
+func extractGears(lines []string) []Gear {
+	gears := []Gear{}
+
+	for y, line := range lines {
+		for x := 0; x < len(line); x++ {
+			if line[x] == '*' {
+				gears = append(gears, Gear{x, y})
+			}
+		}
+	}
+
+	return gears
+}
+
+func findNeighbouringPartNumbers(partNumbers []PartNumber, x int, y int) []PartNumber {
+	neighbours := []PartNumber{}
+
+	for _, partNumber := range partNumbers {
+		if partNumber.row >= y-1 && partNumber.row <= y+1 && partNumber.s <= x+1 && partNumber.e > x-1 {
+			neighbours = append(neighbours, partNumber)
+		}
+	}
+
+	return neighbours
+}
+
 // Time taken: 16 minutes
 func Part1() (string, error) {
 	lines, err := shared.ReadFileLines("days/day3/input.txt")
@@ -105,4 +136,29 @@ func Part1() (string, error) {
 	}
 
 	return strconv.Itoa(partNumbersSum), nil
+}
+
+// Time taken: 15 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day3/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	partNumbers, err := extractPartNumbers(lines)
+	if err != nil {
+		return "", err
+	}
+
+	gears := extractGears(lines)
+
+	gearRatiosSum := 0
+	for _, gear := range gears {
+		neighbours := findNeighbouringPartNumbers(partNumbers, gear.x, gear.y)
+		if len(neighbours) == 2 {
+			gearRatiosSum += neighbours[0].number * neighbours[1].number
+		}
+	}
+
+	return strconv.Itoa(gearRatiosSum), nil
 }
