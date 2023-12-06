@@ -45,6 +45,8 @@ func main() {
 		result, err = day4.Part2()
 	} else if day == "5" && part == "1" {
 		result, err = day5.Part1()
+	} else if day == "5" && part == "2" {
+		result, err = day5.Part2()
 	} else {
 		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}

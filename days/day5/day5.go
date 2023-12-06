@@ -9,6 +9,11 @@ import (
 
 type Seeds []int
 
+type SeedRange struct {
+	start  int
+	length int
+}
+
 type RangeMapEntry struct {
 	destinationStart int
 	sourceStart      int
@@ -30,6 +35,7 @@ func (rm RangeMap) lookup(source int) int {
 
 type Almanac struct {
 	seeds                 Seeds
+	seedRanges            []SeedRange
 	seedSoilMap           RangeMap
 	soilFertilizerMap     RangeMap
 	fertilizerWaterMap    RangeMap
@@ -49,6 +55,25 @@ func readSeeds(line string) (Seeds, error) {
 		seeds = append(seeds, seed)
 	}
 	return seeds, nil
+}
+
+func readSeedRanges(line string) ([]SeedRange, error) {
+	fields := strings.Fields(line[len("seeds: "):])
+	seedRanges := []SeedRange{}
+	for i := 0; i < len(fields); i += 2 {
+		start, err := strconv.Atoi(fields[i])
+		if err != nil {
+			return []SeedRange{}, err
+		}
+
+		length, err := strconv.Atoi(fields[i+1])
+		if err != nil {
+			return []SeedRange{}, err
+		}
+
+		seedRanges = append(seedRanges, SeedRange{start, length})
+	}
+	return seedRanges, nil
 }
 
 func readRangeMapEntry(line string) (RangeMapEntry, error) {
@@ -82,6 +107,12 @@ func readAlmanac(lines []string) (Almanac, error) {
 		return Almanac{}, err
 	}
 	almanac.seeds = seeds
+
+	seedRanges, err := readSeedRanges(lines[0])
+	if err != nil {
+		return Almanac{}, err
+	}
+	almanac.seedRanges = seedRanges
 
 	row := 2
 	for {
@@ -147,6 +178,31 @@ func Part1() (string, error) {
 		seedResult := computeSeedResult(seed, almanac)
 		if lowestSeedResult == -1 || seedResult < lowestSeedResult {
 			lowestSeedResult = seedResult
+		}
+	}
+
+	return strconv.Itoa(lowestSeedResult), nil
+}
+
+// Time taken: 15 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day5/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	almanac, err := readAlmanac(lines)
+	if err != nil {
+		return "", err
+	}
+
+	lowestSeedResult := -1
+	for _, seedRange := range almanac.seedRanges {
+		for seed := seedRange.start; seed < seedRange.start+seedRange.length; seed++ {
+			seedResult := computeSeedResult(seed, almanac)
+			if lowestSeedResult == -1 || seedResult < lowestSeedResult {
+				lowestSeedResult = seedResult
+			}
 		}
 	}
 
