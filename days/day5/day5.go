@@ -24,13 +24,27 @@ type RangeMap struct {
 	entries []RangeMapEntry
 }
 
-func (rm RangeMap) lookup(source int) int {
+// Looks up a value and returns:
+//   - The mapped value
+//   - How many other source values after this one also map in the same way
+//     i.e. if x maps to y, then x + 1 maps to y + 1
+func (rm RangeMap) lookup(source int) (int, int) {
 	for _, entry := range rm.entries {
 		if source >= entry.sourceStart && source < entry.sourceStart+entry.length {
-			return entry.destinationStart + (source - entry.sourceStart)
+			return entry.destinationStart + (source - entry.sourceStart), entry.length - (source - entry.sourceStart)
 		}
 	}
-	return source
+
+	nextSourceStart := -1
+	for _, entry := range rm.entries {
+		if source < entry.sourceStart && (nextSourceStart == -1 || nextSourceStart > entry.sourceStart) {
+			nextSourceStart = entry.sourceStart
+		}
+	}
+	if nextSourceStart == -1 {
+		return source, 1000000000
+	}
+	return source, nextSourceStart - source - 1
 }
 
 type Almanac struct {
@@ -150,15 +164,15 @@ func readAlmanac(lines []string) (Almanac, error) {
 	return almanac, nil
 }
 
-func computeSeedResult(seed int, almanac Almanac) int {
-	soil := almanac.seedSoilMap.lookup(seed)
-	fertilizer := almanac.soilFertilizerMap.lookup(soil)
-	water := almanac.fertilizerWaterMap.lookup(fertilizer)
-	light := almanac.waterLightMap.lookup(water)
-	temperature := almanac.lightTemperatureMap.lookup(light)
-	humidity := almanac.temperaturHumidityMap.lookup(temperature)
-	location := almanac.humidityLocationMap.lookup(humidity)
-	return location
+func computeSeedResult(seed int, almanac Almanac) (int, int) {
+	soil, soilFV := almanac.seedSoilMap.lookup(seed)
+	fertilizer, fertilizerFV := almanac.soilFertilizerMap.lookup(soil)
+	water, waterFV := almanac.fertilizerWaterMap.lookup(fertilizer)
+	light, lightFV := almanac.waterLightMap.lookup(water)
+	temperature, temperatureFV := almanac.lightTemperatureMap.lookup(light)
+	humidity, humidityFV := almanac.temperaturHumidityMap.lookup(temperature)
+	location, locationFV := almanac.humidityLocationMap.lookup(humidity)
+	return location, min(soilFV, fertilizerFV, waterFV, lightFV, temperatureFV, humidityFV, locationFV)
 }
 
 // Time taken: 25 minutes
@@ -173,18 +187,20 @@ func Part1() (string, error) {
 		return "", err
 	}
 
-	lowestSeedResult := -1
+	lowestResult := -1
 	for _, seed := range almanac.seeds {
-		seedResult := computeSeedResult(seed, almanac)
-		if lowestSeedResult == -1 || seedResult < lowestSeedResult {
-			lowestSeedResult = seedResult
+		result, _ := computeSeedResult(seed, almanac)
+		if lowestResult == -1 || result < lowestResult {
+			lowestResult = result
 		}
 	}
 
-	return strconv.Itoa(lowestSeedResult), nil
+	return strconv.Itoa(lowestResult), nil
 }
 
-// Time taken: 15 minutes
+// Original time taken to get answer: 15 minutes
+// Execution time before optimization: 352 seconds
+// Execution time after optimization: 0.2 seconds
 func Part2() (string, error) {
 	lines, err := shared.ReadFileLines("days/day5/input.txt")
 	if err != nil {
@@ -196,15 +212,19 @@ func Part2() (string, error) {
 		return "", err
 	}
 
-	lowestSeedResult := -1
+	lowestResult := -1
 	for _, seedRange := range almanac.seedRanges {
 		for seed := seedRange.start; seed < seedRange.start+seedRange.length; seed++ {
-			seedResult := computeSeedResult(seed, almanac)
-			if lowestSeedResult == -1 || seedResult < lowestSeedResult {
-				lowestSeedResult = seedResult
+			result, followingValues := computeSeedResult(seed, almanac)
+			if lowestResult == -1 || result < lowestResult {
+				lowestResult = result
 			}
+
+			// We're only looking for the lowest result, and the following values all map linearly
+			// so they must be higher than the result we just computed and we can ignore them
+			seed += followingValues
 		}
 	}
 
-	return strconv.Itoa(lowestSeedResult), nil
+	return strconv.Itoa(lowestResult), nil
 }
