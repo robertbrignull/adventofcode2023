@@ -64,3 +64,28 @@ func Part1() (string, error) {
 
 	return strconv.Itoa(result), nil
 }
+
+// Time taken: 4 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day6/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	time, err := strconv.Atoi(strings.Replace(lines[0][len("Time:"):], " ", "", -1))
+	if err != nil {
+		return "", err
+	}
+
+	distance, err := strconv.Atoi(strings.Replace(lines[1][len("Distance:"):], " ", "", -1))
+	if err != nil {
+		return "", err
+	}
+
+	result, err := computeNumWaysToWin(time, distance+1)
+	if err != nil {
+		return "", err
+	}
+
+	return strconv.Itoa(result), nil
+}
