@@ -23,6 +23,7 @@ const (
 	Four
 	Three
 	Two
+	Joker
 )
 
 func (x Card) String() string {
@@ -53,6 +54,8 @@ func (x Card) String() string {
 		return "Three"
 	case Two:
 		return "Two"
+	case Joker:
+		return "Joker"
 	default:
 		return fmt.Sprintf("%d", int(x))
 	}
@@ -64,7 +67,7 @@ type Hand struct {
 	handType HandType
 }
 
-func readCard(c byte) (Card, error) {
+func readCard(c byte, useJokers bool) (Card, error) {
 	switch c {
 	case 'A':
 		return Ace, nil
@@ -73,7 +76,11 @@ func readCard(c byte) (Card, error) {
 	case 'Q':
 		return Queen, nil
 	case 'J':
-		return Jack, nil
+		if useJokers {
+			return Joker, nil
+		} else {
+			return Jack, nil
+		}
 	case 'T':
 		return Ten, nil
 	case '9':
@@ -97,11 +104,11 @@ func readCard(c byte) (Card, error) {
 	}
 }
 
-func readHand(line string) (Hand, error) {
+func readHand(line string, useJokers bool) (Hand, error) {
 	hand := Hand{}
 
 	for i := 0; i < 5; i++ {
-		card, err := readCard(line[i])
+		card, err := readCard(line[i], useJokers)
 		if err != nil {
 			return Hand{}, err
 		}
@@ -114,15 +121,15 @@ func readHand(line string) (Hand, error) {
 	}
 	hand.bid = bid
 
-	hand.handType = getHandType(hand.cards)
+	hand.handType = getHandType(hand.cards, useJokers)
 
 	return hand, nil
 }
 
-func readHands(lines []string) ([]Hand, error) {
+func readHands(lines []string, useJokers bool) ([]Hand, error) {
 	hands := make([]Hand, len(lines))
 	for i, line := range lines {
-		hand, err := readHand(line)
+		hand, err := readHand(line, useJokers)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +171,7 @@ func (x HandType) String() string {
 	}
 }
 
-func getHandType(handCards [5]Card) HandType {
+func getHandTypeWithoutJokers(handCards [5]Card) HandType {
 	cards := [5]Card{}
 	copy(cards[:], handCards[:])
 
@@ -199,6 +206,52 @@ func getHandType(handCards [5]Card) HandType {
 	return HighCard
 }
 
+func getHandType(cards [5]Card, useJokers bool) HandType {
+	handType := getHandTypeWithoutJokers(cards)
+
+	if !useJokers {
+		return handType
+	}
+
+	numJokers := 0
+	for _, card := range cards {
+		if card == Joker {
+			numJokers++
+		}
+	}
+
+	if numJokers == 0 {
+		return handType
+	}
+
+	switch handType {
+	case FiveOfAKind:
+		return FiveOfAKind
+
+	case FourOfAKind:
+		return FiveOfAKind
+
+	case FullHouse:
+		return FiveOfAKind
+
+	case ThreeOfAKind:
+		return FourOfAKind
+
+	case TwoPair:
+		if numJokers == 1 {
+			return FullHouse
+		} else {
+			return FourOfAKind
+		}
+
+	case OnePair:
+		return ThreeOfAKind
+	}
+
+	// case HighCard
+	return OnePair
+}
+
 func compareHands(handA Hand, handB Hand) bool {
 	if handA.handType != handB.handType {
 		return handA.handType > handB.handType
@@ -220,7 +273,7 @@ func Part1() (string, error) {
 		return "", err
 	}
 
-	hands, err := readHands(lines)
+	hands, err := readHands(lines, false)
 	if err != nil {
 		return "", err
 	}
@@ -229,9 +282,29 @@ func Part1() (string, error) {
 		return compareHands(hands[i], hands[j])
 	})
 
-	// for i, hand := range hands {
-	// 	fmt.Printf("Hand (%s %s %s %s %s), type = %s, winnings = %d * %d = %d\n", hand.cards[0], hand.cards[1], hand.cards[2], hand.cards[3], hand.cards[4], getHandType(hand), hand.bid, i+1, hand.bid*(i+1))
-	// }
+	winnings := 0
+	for i, hand := range hands {
+		winnings += hand.bid * (i + 1)
+	}
+
+	return strconv.Itoa(winnings), nil
+}
+
+// Time taken: 31 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day7/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	hands, err := readHands(lines, true)
+	if err != nil {
+		return "", err
+	}
+
+	sort.SliceStable(hands, func(i, j int) bool {
+		return compareHands(hands[i], hands[j])
+	})
 
 	winnings := 0
 	for i, hand := range hands {
