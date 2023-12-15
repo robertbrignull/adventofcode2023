@@ -8,50 +8,50 @@ import (
 	"strconv"
 )
 
-type instruction int8
+type Instruction int8
 
 const (
-	left instruction = iota
-	right
+	Left Instruction = iota
+	Right
 )
 
-type branch struct {
+type Branch struct {
 	left  string
 	right string
 }
 
-type branches map[string]branch
+type Branches map[string]Branch
 
-func readInstruction(c byte) (instruction, error) {
+func readInstruction(c byte) (Instruction, error) {
 	if c == 'L' {
-		return left, nil
+		return Left, nil
 	} else if c == 'R' {
-		return right, nil
+		return Right, nil
 	}
-	return left, fmt.Errorf("'%c' is not a recognised instruction", c)
+	return Left, fmt.Errorf("'%c' is not a recognised instruction", c)
 }
 
-func readInstructions(line string) ([]instruction, error) {
-	is := []instruction{}
+func readInstructions(line string) ([]Instruction, error) {
+	is := []Instruction{}
 	for i := range line {
 		v, err := readInstruction(line[i])
 		if err != nil {
-			return []instruction{}, err
+			return []Instruction{}, err
 		}
 		is = append(is, v)
 	}
 	return is, nil
 }
 
-func readBranches(lines []string) (branches, error) {
-	bs := branches{}
+func readBranches(lines []string) (Branches, error) {
+	bs := Branches{}
 	re := regexp.MustCompile(`(...) = \((...), (...)\)`)
 	for _, line := range lines {
 		match := re.FindStringSubmatch(line)
 		if len(match) != 4 {
-			return branches{}, fmt.Errorf("line could not be parsed: %s", line)
+			return Branches{}, fmt.Errorf("line could not be parsed: %s", line)
 		}
-		bs[match[1]] = branch{
+		bs[match[1]] = Branch{
 			left:  match[2],
 			right: match[3],
 		}
@@ -59,24 +59,24 @@ func readBranches(lines []string) (branches, error) {
 	return bs, nil
 }
 
-type stepsToNextDest struct {
+type StepsToNextDest struct {
 	steps int
 	dest  string
 	index int
 }
 
-type computedStepsNeeded struct {
-	instructions []instruction
-	bs           branches
-	storedSteps  map[string]stepsToNextDest
+type ComputedStepsNeeded struct {
+	instructions []Instruction
+	bs           Branches
+	storedSteps  map[string]StepsToNextDest
 	ghostMode    bool
 }
 
-func (c computedStepsNeeded) key(node string, index int) string {
+func (c ComputedStepsNeeded) key(node string, index int) string {
 	return fmt.Sprintf("%s%d", node, index)
 }
 
-func (c computedStepsNeeded) isDest(node string) bool {
+func (c ComputedStepsNeeded) isDest(node string) bool {
 	if c.ghostMode {
 		return node[2] == 'Z'
 	} else {
@@ -84,7 +84,7 @@ func (c computedStepsNeeded) isDest(node string) bool {
 	}
 }
 
-func (c computedStepsNeeded) getStepsToNextDest(node string, index int) (stepsToNextDest, error) {
+func (c ComputedStepsNeeded) getStepsToNextDest(node string, index int) (StepsToNextDest, error) {
 	fmt.Printf("Computing next dest for %s at index %d\n", node, index)
 
 	key := c.key(node, index)
@@ -95,7 +95,7 @@ func (c computedStepsNeeded) getStepsToNextDest(node string, index int) (stepsTo
 	step := 0
 	for {
 		if c.isDest(node) {
-			result := stepsToNextDest{steps: step, dest: node, index: index}
+			result := StepsToNextDest{steps: step, dest: node, index: index}
 			c.storedSteps[key] = result
 			return result, nil
 		}
@@ -106,10 +106,10 @@ func (c computedStepsNeeded) getStepsToNextDest(node string, index int) (stepsTo
 
 		branch, ok := c.bs[node]
 		if !ok {
-			return stepsToNextDest{}, fmt.Errorf("No branch found for node %s", node)
+			return StepsToNextDest{}, fmt.Errorf("No branch found for node %s", node)
 		}
 
-		if c.instructions[index] == left {
+		if c.instructions[index] == Left {
 			node = branch.left
 		} else {
 			node = branch.right
@@ -140,10 +140,10 @@ func Part1() (string, error) {
 		return "", err
 	}
 
-	computer := computedStepsNeeded{
+	computer := ComputedStepsNeeded{
 		instructions: instructions,
 		bs:           bs,
-		storedSteps:  map[string]stepsToNextDest{},
+		storedSteps:  map[string]StepsToNextDest{},
 		ghostMode:    false,
 	}
 
@@ -155,24 +155,24 @@ func Part1() (string, error) {
 	return strconv.Itoa(result.steps), nil
 }
 
-type ghostNode struct {
+type GhostNode struct {
 	node  string
 	steps int
 	index int
 }
 
-func countGhostStepsToDestination(instructions []instruction, bs branches) (int, error) {
-	nodes := []ghostNode{}
+func countGhostStepsToDestination(instructions []Instruction, bs Branches) (int, error) {
+	nodes := []GhostNode{}
 	for node := range bs {
 		if node[2] == 'A' {
-			nodes = append(nodes, ghostNode{node: node, steps: 0, index: 0})
+			nodes = append(nodes, GhostNode{node: node, steps: 0, index: 0})
 		}
 	}
 
-	computer := computedStepsNeeded{
+	computer := ComputedStepsNeeded{
 		instructions: instructions,
 		bs:           bs,
-		storedSteps:  map[string]stepsToNextDest{},
+		storedSteps:  map[string]StepsToNextDest{},
 		ghostMode:    false,
 	}
 
@@ -191,7 +191,7 @@ func countGhostStepsToDestination(instructions []instruction, bs branches) (int,
 		}
 
 		fmt.Printf("Advanced %s at step %d to %s at step %d\n", nodes[0].node, nodes[0].steps, result.dest, nodes[0].steps+result.steps)
-		nodes[0] = ghostNode{
+		nodes[0] = GhostNode{
 			node:  result.dest,
 			steps: nodes[0].steps + result.steps,
 			index: result.index,
@@ -199,7 +199,7 @@ func countGhostStepsToDestination(instructions []instruction, bs branches) (int,
 	}
 }
 
-// Time taken: 09:11-09:35, 09:56-10:29, unfinished
+// Time taken: 09:11-09:35, 09:56-10:29, 12:34
 func Part2() (string, error) {
 	lines, err := shared.ReadFileLines("days/day8/input.txt")
 	if err != nil {
