@@ -59,68 +59,156 @@ func readBranches(lines []string) (Branches, error) {
 	return bs, nil
 }
 
-type StepsToNextDest struct {
-	steps int
-	dest  string
-	index int
+type DFAState struct {
+	node         string
+	index        int
+	nextDestNode string
+	stepsToDest  int
 }
 
-type ComputedStepsNeeded struct {
-	instructions []Instruction
-	bs           Branches
-	storedSteps  map[string]StepsToNextDest
-	ghostMode    bool
+type DFA struct {
+	nodes       []string
+	destNodes   []string
+	transitions map[string]DFAState
+	numIndexes  int
 }
 
-func (c ComputedStepsNeeded) key(node string, index int) string {
+func (d DFA) key(node string, index int) string {
 	return fmt.Sprintf("%s%d", node, index)
 }
 
-func (c ComputedStepsNeeded) isDest(node string) bool {
-	if c.ghostMode {
-		return node[2] == 'Z'
-	} else {
-		return node == "ZZZ"
+func (d DFA) decodeKey(key string) (string, int, error) {
+	node := key[0:3]
+	index, err := strconv.Atoi(key[3:])
+	if err != nil {
+		return "", 0, err
+	}
+	return node, index, nil
+}
+
+func (d DFA) backwardsTransitions() (map[string][]string, error) {
+	backwardTransitions := make(map[string][]string)
+	for k, v := range d.transitions {
+		key := d.key(v.node, v.index)
+		if _, ok := backwardTransitions[key]; !ok {
+			backwardTransitions[key] = make([]string, 0)
+		}
+		backwardTransitions[key] = append(backwardTransitions[key], k)
+	}
+	return backwardTransitions, nil
+}
+
+func (d DFA) computeStepsToDest() error {
+	keysToProcess := make([]string, 0)
+	for _, destNode := range d.destNodes {
+		for index := 0; index < d.numIndexes; index++ {
+			key := d.key(destNode, index)
+			keysToProcess = append(keysToProcess, key)
+
+			t := d.transitions[key]
+			t.nextDestNode = destNode
+			t.stepsToDest = 0
+			d.transitions[key] = t
+		}
+	}
+
+	backwardTransitions, err := d.backwardsTransitions()
+	if err != nil {
+		return err
+	}
+
+	for {
+		if len(keysToProcess) == 0 {
+			return nil
+		}
+		key := keysToProcess[0]
+		keysToProcess = keysToProcess[1:]
+
+		transition := d.transitions[key]
+
+		prevKeys, foundPrevKeys := backwardTransitions[key]
+		if foundPrevKeys {
+			for _, prevKey := range prevKeys {
+				prevTransition := d.transitions[prevKey]
+				if prevTransition.stepsToDest == -1 {
+					prevTransition.stepsToDest = transition.stepsToDest + 1
+					prevTransition.nextDestNode = transition.nextDestNode
+					keysToProcess = append(keysToProcess, prevKey)
+					d.transitions[prevKey] = prevTransition
+				}
+			}
+		}
 	}
 }
 
-func (c ComputedStepsNeeded) getStepsToNextDest(node string, index int) (StepsToNextDest, error) {
-	fmt.Printf("Computing next dest for %s at index %d\n", node, index)
-
-	key := c.key(node, index)
-	if v, ok := c.storedSteps[key]; ok {
-		return v, nil
+func getAllNodes(branches Branches) []string {
+	s := make(map[string]bool)
+	for k, v := range branches {
+		s[k] = true
+		s[v.left] = true
+		s[v.right] = true
 	}
 
-	step := 0
-	for {
-		if c.isDest(node) {
-			result := StepsToNextDest{steps: step, dest: node, index: index}
-			c.storedSteps[key] = result
-			return result, nil
-		}
+	nodes := make([]string, 0, len(s))
+	for k := range s {
+		nodes = append(nodes, k)
+	}
+	return nodes
+}
 
-		if index >= len(c.instructions) {
-			index = 0
-		}
-
-		branch, ok := c.bs[node]
-		if !ok {
-			return StepsToNextDest{}, fmt.Errorf("No branch found for node %s", node)
-		}
-
-		if c.instructions[index] == Left {
-			node = branch.left
-		} else {
-			node = branch.right
-		}
-		step += 1
-		index += 1
-
-		if step%1000000 == 0 {
-			fmt.Printf("Step = %d\n", step)
+func getDestNodes(nodes []string, ghostMode bool) []string {
+	destNodes := make([]string, 0)
+	for _, node := range nodes {
+		if (ghostMode && node[2] == 'Z') || node == "ZZZ" {
+			destNodes = append(destNodes, node)
 		}
 	}
+	return destNodes
+}
+
+func getNextNode(instructions []Instruction, branches Branches, node string, index int) (string, error) {
+	branch, ok := branches[node]
+	if !ok {
+		return "", fmt.Errorf("No branches defined for node %s", node)
+	}
+
+	instruction := instructions[index]
+	if instruction == Left {
+		return branch.left, nil
+	} else {
+		return branch.right, nil
+	}
+}
+
+func buildDFA(instructions []Instruction, branches Branches, ghostMode bool) (DFA, error) {
+	nodes := getAllNodes(branches)
+	transitions := make(map[string]DFAState)
+	numIndexes := len(instructions)
+	destNodes := getDestNodes(nodes, ghostMode)
+
+	dfa := DFA{nodes, destNodes, transitions, numIndexes}
+
+	for index := 0; index < numIndexes; index++ {
+		for _, node := range nodes {
+			nextNode, err := getNextNode(instructions, branches, node, index)
+			if err != nil {
+				return DFA{}, err
+			}
+			dfa.transitions[dfa.key(node, index)] = DFAState{
+				node:         nextNode,
+				index:        (index + 1) % numIndexes,
+				nextDestNode: "",
+				stepsToDest:  -1,
+			}
+		}
+	}
+
+	err := dfa.computeStepsToDest()
+	if err != nil {
+		return DFA{}, err
+	}
+
+	return dfa, nil
 }
 
 // Time taken: 35 minutes
@@ -140,19 +228,17 @@ func Part1() (string, error) {
 		return "", err
 	}
 
-	computer := ComputedStepsNeeded{
-		instructions: instructions,
-		bs:           bs,
-		storedSteps:  map[string]StepsToNextDest{},
-		ghostMode:    false,
-	}
-
-	result, err := computer.getStepsToNextDest("AAA", 0)
+	dfa, err := buildDFA(instructions, bs, false)
 	if err != nil {
 		return "", err
 	}
 
-	return strconv.Itoa(result.steps), nil
+	result := dfa.transitions[dfa.key("AAA", 0)]
+	if result.stepsToDest == -1 {
+		return "", fmt.Errorf("No route from AAA to dest node")
+	}
+
+	return strconv.Itoa(result.stepsToDest), nil
 }
 
 type GhostNode struct {
@@ -169,11 +255,9 @@ func countGhostStepsToDestination(instructions []Instruction, bs Branches) (int,
 		}
 	}
 
-	computer := ComputedStepsNeeded{
-		instructions: instructions,
-		bs:           bs,
-		storedSteps:  map[string]StepsToNextDest{},
-		ghostMode:    false,
+	dfa, err := buildDFA(instructions, bs, false)
+	if err != nil {
+		return 0, err
 	}
 
 	for {
@@ -185,21 +269,21 @@ func countGhostStepsToDestination(instructions []Instruction, bs Branches) (int,
 			return nodes[0].steps, nil
 		}
 
-		result, err := computer.getStepsToNextDest(nodes[0].node, nodes[0].index)
-		if err != nil {
-			return 0, err
+		result := dfa.transitions[dfa.key(nodes[0].node, nodes[0].index)]
+		if result.stepsToDest == -1 {
+			return 0, fmt.Errorf("No route from %s to dest node", nodes[0].node)
 		}
 
-		fmt.Printf("Advanced %s at step %d to %s at step %d\n", nodes[0].node, nodes[0].steps, result.dest, nodes[0].steps+result.steps)
+		fmt.Printf("Advanced %s at step %d to %s at step %d\n", nodes[0].node, nodes[0].steps, result.nextDestNode, nodes[0].steps+result.stepsToDest)
 		nodes[0] = GhostNode{
-			node:  result.dest,
-			steps: nodes[0].steps + result.steps,
+			node:  result.nextDestNode,
+			steps: nodes[0].steps + result.stepsToDest,
 			index: result.index,
 		}
 	}
 }
 
-// Time taken: 09:11-09:35, 09:56-10:29, 12:34
+// Time taken: 2h 01m and I think confirmed unfinishable with my problem input :(
 func Part2() (string, error) {
 	lines, err := shared.ReadFileLines("days/day8/input.txt")
 	if err != nil {
