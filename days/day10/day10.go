@@ -15,6 +15,10 @@ const (
 	W
 )
 
+func allDirections() []Direction {
+	return []Direction{N, S, E, W}
+}
+
 func (d Direction) opposite() Direction {
 	switch d {
 	case N:
@@ -25,6 +29,25 @@ func (d Direction) opposite() Direction {
 		return W
 	case W:
 		return E
+	}
+	panic(fmt.Sprintf("Unhandled direction %v", d))
+}
+
+type Coord struct {
+	x int
+	y int
+}
+
+func (c Coord) moveDirection(d Direction) Coord {
+	switch d {
+	case N:
+		return Coord{x: c.x, y: c.y - 1}
+	case S:
+		return Coord{x: c.x, y: c.y + 1}
+	case E:
+		return Coord{x: c.x + 1, y: c.y}
+	case W:
+		return Coord{x: c.x - 1, y: c.y}
 	}
 	panic(fmt.Sprintf("Unhandled direction %v", d))
 }
@@ -100,6 +123,52 @@ func (p Pipe) getConnectingDirection() (Direction, error) {
 	return N, fmt.Errorf("Pipe %v doesn't connect in any directions", p)
 }
 
+func (p Pipe) getInsideAndOutsideCoords(c Coord) (Coord, Coord, error) {
+	switch p {
+	case NS:
+		return c, c.moveDirection(E), nil
+	case EW:
+		return c, c.moveDirection(S), nil
+	case NE:
+		return c, c.moveDirection(E), nil
+	case ES:
+		return c.moveDirection(E), c.moveDirection(E).moveDirection(S), nil
+	case SW:
+		return c, c.moveDirection(S), nil
+	case WN:
+		return c, c.moveDirection(E), nil
+	}
+	return c, c, fmt.Errorf("Pipe %v cannot have inside and outside coords", p)
+}
+
+func (p Pipe) isMovementOutofTileBlocked(directionMoving Direction) bool {
+	switch directionMoving {
+	case N:
+		return true
+	case E:
+		return p.connectsFrom(N)
+	case S:
+		return p.connectsFrom(W)
+	case W:
+		return true
+	}
+	panic(fmt.Sprintf("Unhandled direction %v", directionMoving))
+}
+
+func (p Pipe) isMovementIntoTileBlocked(directionMoving Direction) bool {
+	switch directionMoving {
+	case N:
+		return p.connectsFrom(W)
+	case E:
+		return true
+	case S:
+		return true
+	case W:
+		return p.connectsFrom(N)
+	}
+	panic(fmt.Sprintf("Unhandled direction %v", directionMoving))
+}
+
 type PipeField [][]Pipe
 
 func readPipeField(lines []string) (PipeField, error) {
@@ -118,22 +187,26 @@ func readPipeField(lines []string) (PipeField, error) {
 	return pf, nil
 }
 
-func (pf PipeField) findStart() (int, int, error) {
+func (pf PipeField) getPipe(c Coord) Pipe {
+	return pf[c.y][c.x]
+}
+
+func (pf PipeField) findStart() (Coord, error) {
 	for y, line := range pf {
 		for x, p := range line {
 			if p == Start {
-				return x, y, nil
+				return Coord{x, y}, nil
 			}
 		}
 	}
-	return 0, 0, fmt.Errorf("Unable to find start in pipe field")
+	return Coord{}, fmt.Errorf("Unable to find start in pipe field")
 }
 
-func (pf PipeField) determineStartPipe(x int, y int) (Pipe, error) {
-	connectsN := y > 0 && pf[y-1][x].connectsFrom(S)
-	connectsS := y < len(pf)-1 && pf[y+1][x].connectsFrom(N)
-	connectsE := x < len(pf[0])-1 && pf[y][x+1].connectsFrom(W)
-	connectsW := x > 0 && pf[y][x-1].connectsFrom(E)
+func (pf PipeField) determineStartPipe(c Coord) (Pipe, error) {
+	connectsN := c.y > 0 && pf.getPipe(c.moveDirection(N)).connectsFrom(S)
+	connectsS := c.y < len(pf)-1 && pf.getPipe(c.moveDirection(S)).connectsFrom(N)
+	connectsE := c.x < len(pf[0])-1 && pf.getPipe(c.moveDirection(E)).connectsFrom(W)
+	connectsW := c.x > 0 && pf.getPipe(c.moveDirection(W)).connectsFrom(E)
 
 	if connectsN && !connectsE && connectsS && !connectsW {
 		return NS, nil
@@ -148,50 +221,143 @@ func (pf PipeField) determineStartPipe(x int, y int) (Pipe, error) {
 	} else if connectsN && !connectsE && !connectsS && connectsW {
 		return WN, nil
 	} else {
-		return None, fmt.Errorf("Pipe at (%d, %d) does not connect to exactly two other pipes", x, y)
+		return None, fmt.Errorf("Pipe at (%d, %d) does not connect to exactly two other pipes", c.x, c.y)
 	}
 }
 
-func (pf PipeField) replaceStartPipe(x int, y int) error {
-	p, err := pf.determineStartPipe(x, y)
+func (pf PipeField) replaceStartPipe(c Coord) error {
+	p, err := pf.determineStartPipe(c)
 	if err != nil {
 		return err
 	}
-	pf[y][x] = p
+	pf[c.y][c.x] = p
 	return nil
 }
 
-func (pf PipeField) findLengthOfPipeLoop(startX int, startY int) (int, error) {
-	x := startX
-	y := startY
+func (pf PipeField) findTilesOnLoop(start Coord) (map[Coord]bool, error) {
+	loopTiles := make(map[Coord]bool, 0)
 
-	prevDirection, err := pf[startY][startX].getConnectingDirection()
+	c := start
+
+	prevDirection, err := pf.getPipe(start).getConnectingDirection()
+	if err != nil {
+		return map[Coord]bool{}, err
+	}
+
+	for {
+		p := pf.getPipe(c)
+		for _, d := range allDirections() {
+			if p.connectsFrom(d) && prevDirection != d {
+				c = c.moveDirection(d)
+				prevDirection = d.opposite()
+				break
+			}
+		}
+
+		loopTiles[c] = true
+
+		if c == start {
+			return loopTiles, nil
+		}
+	}
+}
+
+func (pf PipeField) findLengthOfPipeLoop(start Coord) (int, error) {
+	loopTiles, err := pf.findTilesOnLoop(start)
+	if err != nil {
+		return 0, err
+	}
+	return len(loopTiles), nil
+}
+
+func (pf PipeField) cleanTilesNotOnLoop(start Coord) error {
+	loopTiles, err := pf.findTilesOnLoop(start)
+	if err != nil {
+		return err
+	}
+
+	for y := range pf {
+		for x := range pf[y] {
+			if _, ok := loopTiles[Coord{x, y}]; !ok {
+				pf[y][x] = None
+			}
+		}
+	}
+
+	return nil
+}
+
+func (pf PipeField) isCoordInsideLoop(start Coord, loopTiles map[Coord]bool) (bool, int, error) {
+	coordsToProcess := make([]Coord, 1)
+	coordsToProcess[0] = start
+
+	coordsSeen := make(map[Coord]bool)
+
+	tilesContained := make(map[Coord]bool)
+
+	for {
+		if len(coordsToProcess) == 0 {
+			return true, len(tilesContained), nil
+		}
+
+		c := coordsToProcess[0]
+		coordsToProcess = coordsToProcess[1:]
+
+		if _, ok := coordsSeen[c]; ok {
+			continue
+		}
+		coordsSeen[c] = true
+
+		if c.x < 0 || c.x >= len(pf[0]) || c.y < 0 || c.y >= len(pf) {
+			return false, 0, nil
+		}
+
+		if pf.getPipe(c) == None {
+			tilesContained[c] = true
+		}
+
+		if c.y > 0 && !pf.getPipe(c.moveDirection(N)).isMovementIntoTileBlocked(N) {
+			coordsToProcess = append(coordsToProcess, c.moveDirection(N))
+		}
+		if !pf.getPipe(c).isMovementOutofTileBlocked(E) {
+			coordsToProcess = append(coordsToProcess, c.moveDirection(E))
+		}
+		if !pf.getPipe(c).isMovementOutofTileBlocked(S) {
+			coordsToProcess = append(coordsToProcess, c.moveDirection(S))
+		}
+		if c.x > 0 && !pf.getPipe(c.moveDirection(W)).isMovementIntoTileBlocked(W) {
+			coordsToProcess = append(coordsToProcess, c.moveDirection(W))
+		}
+	}
+}
+
+func (pf PipeField) findAreaEnclosedByPipeLoop(start Coord) (int, error) {
+	loopTiles, err := pf.findTilesOnLoop(start)
 	if err != nil {
 		return 0, err
 	}
 
-	loopLength := 0
+	coordA, coordB, err := pf.getPipe(start).getInsideAndOutsideCoords(start)
+	if err != nil {
+		return 0, err
+	}
 
-	for {
-		p := pf[y][x]
-		if p.connectsFrom(N) && prevDirection != N {
-			y -= 1
-			prevDirection = N.opposite()
-		} else if p.connectsFrom(E) && prevDirection != E {
-			x += 1
-			prevDirection = E.opposite()
-		} else if p.connectsFrom(S) && prevDirection != S {
-			y += 1
-			prevDirection = S.opposite()
-		} else if p.connectsFrom(W) && prevDirection != W {
-			x -= 1
-			prevDirection = W.opposite()
-		}
+	isInsideA, tilesContainedA, err := pf.isCoordInsideLoop(coordA, loopTiles)
+	if err != nil {
+		return 0, err
+	}
 
-		loopLength += 1
-		if x == startX && y == startY {
-			return loopLength, nil
-		}
+	isInsideB, tilesContainedB, err := pf.isCoordInsideLoop(coordB, loopTiles)
+	if err != nil {
+		return 0, err
+	}
+
+	if isInsideA {
+		return tilesContainedA, nil
+	} else if isInsideB {
+		return tilesContainedB, nil
+	} else {
+		return 0, fmt.Errorf("Both sides appear to be outside of the loop")
 	}
 }
 
@@ -207,17 +373,17 @@ func Part1() (string, error) {
 		return "", err
 	}
 
-	startX, startY, err := pipeField.findStart()
+	start, err := pipeField.findStart()
 	if err != nil {
 		return "", err
 	}
 
-	err = pipeField.replaceStartPipe(startX, startY)
+	err = pipeField.replaceStartPipe(start)
 	if err != nil {
 		return "", err
 	}
 
-	loopLength, err := pipeField.findLengthOfPipeLoop(startX, startY)
+	loopLength, err := pipeField.findLengthOfPipeLoop(start)
 	if err != nil {
 		return "", err
 	}
@@ -225,4 +391,39 @@ func Part1() (string, error) {
 	farthestDistance := loopLength / 2
 
 	return strconv.Itoa(farthestDistance), nil
+}
+
+// Time taken: 59 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day10/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	pipeField, err := readPipeField(lines)
+	if err != nil {
+		return "", err
+	}
+
+	start, err := pipeField.findStart()
+	if err != nil {
+		return "", err
+	}
+
+	err = pipeField.replaceStartPipe(start)
+	if err != nil {
+		return "", err
+	}
+
+	err = pipeField.cleanTilesNotOnLoop(start)
+	if err != nil {
+		return "", err
+	}
+
+	areaEnclosed, err := pipeField.findAreaEnclosedByPipeLoop(start)
+	if err != nil {
+		return "", err
+	}
+
+	return strconv.Itoa(areaEnclosed), nil
 }
