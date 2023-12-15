@@ -55,6 +55,14 @@ func nextValueInSequence(xs []int) int {
 	}
 }
 
+func prevValueInSequence(xs []int) int {
+	if isAllZeros(xs) {
+		return 0
+	} else {
+		return xs[0] - prevValueInSequence(computeDeltas(xs))
+	}
+}
+
 // Time taken: 15 minutes
 func Part1() (string, error) {
 	lines, err := shared.ReadFileLines("days/day9/input.txt")
@@ -70,6 +78,26 @@ func Part1() (string, error) {
 	total := 0
 	for _, sequence := range sequences {
 		total += nextValueInSequence(sequence)
+	}
+
+	return strconv.Itoa(total), nil
+}
+
+// Time taken: 3 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day9/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	sequences, err := readSequences(lines)
+	if err != nil {
+		return "", err
+	}
+
+	total := 0
+	for _, sequence := range sequences {
+		total += prevValueInSequence(sequence)
 	}
 
 	return strconv.Itoa(total), nil
