@@ -11,6 +11,7 @@ import (
 	"robertbrignull/adventofcode2023/days/day5"
 	"robertbrignull/adventofcode2023/days/day6"
 	"robertbrignull/adventofcode2023/days/day8"
+	"robertbrignull/adventofcode2023/days/day9"
 )
 
 func main() {
@@ -57,6 +58,8 @@ func main() {
 		result, err = day8.Part1()
 	} else if day == "8" && part == "2" {
 		result, err = day8.Part2()
+	} else if day == "9" && part == "1" {
+		result, err = day9.Part1()
 	} else {
 		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}
