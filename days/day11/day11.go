@@ -44,7 +44,12 @@ func (s *Sky) readSky(lines []string) {
 	}
 }
 
-func (s *Sky) expandSpace() {
+func (s *Sky) expandSpace(lots bool) {
+	expansionAmount := 1
+	if lots {
+		expansionAmount = 1000000 - 1
+	}
+
 	for x := 0; x < s.width; x++ {
 		columnHasGalaxies := false
 		for _, galaxy := range s.galaxies {
@@ -56,11 +61,12 @@ func (s *Sky) expandSpace() {
 		if !columnHasGalaxies {
 			for i := range s.galaxies {
 				if s.galaxies[i].x > x {
-					s.galaxies[i].x += 1
+					s.galaxies[i].x += expansionAmount
 				}
 			}
-			s.width += 1
-			x += 1
+
+			s.width += expansionAmount
+			x += expansionAmount
 		}
 	}
 
@@ -75,33 +81,14 @@ func (s *Sky) expandSpace() {
 		if !columnHasGalaxies {
 			for i := range s.galaxies {
 				if s.galaxies[i].y > y {
-					s.galaxies[i].y += 1
+					s.galaxies[i].y += expansionAmount
 				}
 			}
-			s.height += 1
-			y += 1
+			s.height += expansionAmount
+			y += expansionAmount
 		}
 	}
 }
-
-// func (s Sky) print() {
-// 	lines := make([]string, s.height)
-// 	for y := range lines {
-// 		lines[y] = ""
-// 		for x := 0; x < s.width; x++ {
-// 			lines[y] += "."
-// 		}
-// 	}
-
-// 	for _, galaxy := range s.galaxies {
-// 		lines[galaxy.y] = lines[galaxy.y][:galaxy.x] + "#" + lines[galaxy.y][galaxy.x+1:]
-// 	}
-
-// 	for _, line := range lines {
-// 		fmt.Printf("%s\n", line)
-// 	}
-// 	fmt.Println()
-// }
 
 type Pair struct {
 	i int
@@ -139,7 +126,24 @@ func Part1() (string, error) {
 	sky := Sky{}
 	sky.readSky(lines)
 
-	sky.expandSpace()
+	sky.expandSpace(false)
+
+	totalDistance := sky.computeGalaxyDistances()
+
+	return strconv.Itoa(totalDistance), nil
+}
+
+// Time taken: 6 minutes
+func Part2() (string, error) {
+	lines, err := shared.ReadFileLines("days/day11/input.txt")
+	if err != nil {
+		return "", err
+	}
+
+	sky := Sky{}
+	sky.readSky(lines)
+
+	sky.expandSpace(true)
 
 	totalDistance := sky.computeGalaxyDistances()
 
