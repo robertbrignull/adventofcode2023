@@ -5,12 +5,17 @@ import (
 	"log"
 	"os"
 	"robertbrignull/adventofcode2023/days/day1"
+	"robertbrignull/adventofcode2023/days/day10"
+	"robertbrignull/adventofcode2023/days/day11"
+	"robertbrignull/adventofcode2023/days/day12"
 	"robertbrignull/adventofcode2023/days/day2"
 	"robertbrignull/adventofcode2023/days/day3"
 	"robertbrignull/adventofcode2023/days/day4"
 	"robertbrignull/adventofcode2023/days/day5"
 	"robertbrignull/adventofcode2023/days/day6"
 	"robertbrignull/adventofcode2023/days/day7"
+	"robertbrignull/adventofcode2023/days/day8"
+	"robertbrignull/adventofcode2023/days/day9"
 )
 
 func main() {
@@ -57,6 +62,24 @@ func main() {
 		result, err = day7.Part1()
 	} else if day == "7" && part == "2" {
 		result, err = day7.Part2()
+	} else if day == "8" && part == "1" {
+		result, err = day8.Part1()
+	} else if day == "8" && part == "2" {
+		result, err = day8.Part2()
+	} else if day == "9" && part == "1" {
+		result, err = day9.Part1()
+	} else if day == "9" && part == "2" {
+		result, err = day9.Part2()
+	} else if day == "10" && part == "1" {
+		result, err = day10.Part1()
+	} else if day == "10" && part == "2" {
+		result, err = day10.Part2()
+	} else if day == "11" && part == "1" {
+		result, err = day11.Part1()
+	} else if day == "11" && part == "2" {
+		result, err = day11.Part2()
+	} else if day == "12" && part == "1" {
+		result, err = day12.Part1()
 	} else {
 		err = fmt.Errorf("Unrecognised day/part: %s/%s", day, part)
 	}
